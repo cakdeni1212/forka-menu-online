@@ -35,7 +35,9 @@ export default function Home() {
       </ul>
 
       <div className="mt-10 flex gap-4 text-sm text-kopi-600">
+        <Link href="/poin" className="underline">Cek poin member</Link>
         <Link href="/kasir" className="underline">Masuk kasir</Link>
+        <Link href="/absen" className="underline">Absen</Link>
         <Link href="/admin" className="underline">Admin</Link>
       </div>
     </main>

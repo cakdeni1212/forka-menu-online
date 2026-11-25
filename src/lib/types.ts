@@ -13,8 +13,17 @@ export type OrderItem = { id?: string; name: string; price: number; qty: number;
 export type Order = {
   id: string; outlet_id: string; table_id: string | null; order_no: string; source: "qr" | "pos"; status: OrderStatus;
   customer_name: string | null; customer_phone: string | null; note: string | null; total: number;
+  subtotal: number; discount: number; points_redeemed: number; points_earned: number; member_id: string | null;
   payment_method: PaymentMethod | null; amount_paid: number | null; change_amount: number | null;
   paid_at: string | null; created_at: string;
   order_items?: OrderItem[]; tables?: { label: string } | null;
+  member_points_after?: number; // hanya untuk struk setelah bayar
 };
 export type CartLine = { product: Product; qty: number; note: string };
+export type LoyaltySettings = { rupiah_per_point: number; point_value_rupiah: number; min_redeem_points: number };
+export type Member = {
+  id: string; phone: string; name: string | null; points: number; total_spent: number; visit_count: number;
+  last_visit_at: string | null; created_at: string;
+};
+export type Employee = { id: string; outlet_id: string; name: string; jabatan: string | null; is_active: boolean; created_at: string };
+export type Attendance = { id: string; employee_id: string; outlet_id: string; type: "in" | "out"; photo_path: string | null; created_at: string; employees?: { name: string } | null };

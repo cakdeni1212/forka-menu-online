@@ -25,6 +25,12 @@ export default function Receipt({ order, outlet }: { order: Order; outlet: Outle
         </div>
       ))}
       <div className="my-1 border-t border-dashed" />
+      {order.discount > 0 && (
+        <>
+          <div className="flex justify-between"><span>Subtotal</span><span>{rupiah(order.subtotal)}</span></div>
+          <div className="flex justify-between"><span>Tukar {order.points_redeemed} poin</span><span>-{rupiah(order.discount)}</span></div>
+        </>
+      )}
       <div className="flex justify-between font-bold"><span>TOTAL</span><span>{rupiah(order.total)}</span></div>
       {order.payment_method && (
         <>
@@ -33,6 +39,12 @@ export default function Receipt({ order, outlet }: { order: Order; outlet: Outle
         </>
       )}
       <div className="my-1 border-t border-dashed" />
+      {order.member_id && (
+        <div className="text-center">
+          {order.points_earned > 0 && <div>+{order.points_earned} poin</div>}
+          {order.member_points_after !== undefined && <div>Total poin: {order.member_points_after}</div>}
+        </div>
+      )}
       <div className="text-center">Terima kasih!</div>
     </div>
   );

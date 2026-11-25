@@ -6,7 +6,8 @@ import { useStaff } from "@/lib/useStaff";
 import { rupiah, jam, startOfTodayWIB, PAYMENT_LABEL } from "@/lib/format";
 import StaffGate from "@/components/StaffGate";
 import Receipt from "@/components/Receipt";
-import type { CartLine, Category, Order, PaymentMethod, Product } from "@/lib/types";
+import type { CartLine, Category, LoyaltySettings, Member, Order, PaymentMethod, Product } from "@/lib/types";
+import Link from "next/link";
 
 type Tab = "masuk" | "baru" | "riwayat";
 const ORDER_SELECT = "*, order_items(*), tables(label)";
@@ -89,6 +90,7 @@ function Kasir({ s }: { s: ReturnType<typeof useStaff> }) {
             </button>
           ))}
         </nav>
+        <Link href="/absen" className="rounded-lg px-3 py-1.5 text-sm hover:bg-white/10">Absen</Link>
         <span className="text-sm text-kopi-200">{s.staff?.name}</span>
         <button onClick={s.signOut} className="text-sm underline">Keluar</button>
       </header>
@@ -167,38 +169,110 @@ function OrderCard({ o, children }: { o: Order; children?: React.ReactNode }) {
   );
 }
 
+type MemberLookup = { found: boolean; member?: Member; settings: LoyaltySettings };
+
 function PayModal({ order, onClose, onPaid }: { order: Order; onClose: () => void; onPaid: (o: Order) => void }) {
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [cash, setCash] = useState("");
   const [busy, setBusy] = useState(false);
+  const [phone, setPhone] = useState(order.customer_phone ?? "");
+  const [memberName, setMemberName] = useState(order.customer_name ?? "");
+  const [lookup, setLookup] = useState<MemberLookup | null>(null);
+  const [redeem, setRedeem] = useState(0);
+
+  // Cari member otomatis kalau nomor HP sudah cukup panjang
+  useEffect(() => {
+    const digits = phone.replace(/\D/g, "");
+    setLookup(null);
+    setRedeem(0);
+    if (digits.length < 9) return;
+    const t = setTimeout(async () => {
+      const { data } = await supabase().rpc("find_member", { p_phone: phone });
+      if (data) setLookup(data as MemberLookup);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [phone]);
+
+  const settings = lookup?.settings;
+  const member = lookup?.found ? lookup.member : undefined;
+  const maxRedeem = member && settings ? Math.min(member.points, Math.ceil(order.subtotal / settings.point_value_rupiah)) : 0;
+  const canRedeem = !!member && !!settings && maxRedeem >= settings.min_redeem_points;
+  const discount = settings ? Math.min(redeem * settings.point_value_rupiah, order.subtotal) : 0;
+  const total = order.subtotal - discount;
+  const earn = settings && phone.replace(/\D/g, "").length >= 9 ? Math.floor(total / settings.rupiah_per_point) : 0;
+
   const paid = Number(cash.replace(/\D/g, "")) || 0;
-  const change = paid - order.total;
+  const change = paid - total;
   const quick = useMemo(() => {
-    const set = new Set([order.total, Math.ceil(order.total / 10000) * 10000, Math.ceil(order.total / 50000) * 50000, 100000]);
-    return [...set].filter((v) => v >= order.total).sort((a, b) => a - b).slice(0, 4);
-  }, [order.total]);
+    const set = new Set([total, Math.ceil(total / 10000) * 10000, Math.ceil(total / 50000) * 50000, 100000]);
+    return [...set].filter((v) => v >= total).sort((a, b) => a - b).slice(0, 4);
+  }, [total]);
 
   async function pay() {
-    if (method === "cash" && paid < order.total) return alert("Uang yang diterima kurang");
+    if (method === "cash" && paid < total) return alert("Uang yang diterima kurang");
     setBusy(true);
     const { data, error } = await supabase().rpc("pay_order", {
       p_order_id: order.id,
       p_method: method,
       p_amount_paid: method === "cash" ? paid : null,
+      p_member_phone: phone.trim() || null,
+      p_member_name: memberName.trim() || null,
+      p_redeem_points: redeem,
     });
     setBusy(false);
     if (error) return alert(errMsg(error));
-    onPaid(data as Order);
+    onPaid({ ...(data as Order), member_points_after: member ? member.points - (data as Order).points_redeemed + (data as Order).points_earned : (data as Order).points_earned } as Order);
   }
 
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[95vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between">
           <h2 className="text-lg font-bold">Bayar {order.order_no}</h2>
           <button onClick={onClose} className="text-sm text-gray-500">Tutup</button>
         </div>
-        <div className="mt-2 text-3xl font-bold text-kopi-900">{rupiah(order.total)}</div>
+
+        <div className="mt-3 rounded-xl bg-kopi-50 p-3">
+          <div className="text-xs font-semibold text-kopi-700">MEMBER (opsional)</div>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="No. HP customer" className="mt-1 w-full rounded-lg border bg-white px-3 py-2" />
+          {lookup && !lookup.found && (
+            <>
+              <input value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="Nama (member baru)" className="mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm" />
+              <p className="mt-1 text-xs text-gray-600">Member baru, otomatis terdaftar saat bayar.</p>
+            </>
+          )}
+          {member && (
+            <div className="mt-2 text-sm">
+              <div><b>{member.name ?? "Member"}</b> · {member.points} poin</div>
+              {canRedeem ? (
+                <label className="mt-2 flex items-center gap-2">
+                  <input type="checkbox" checked={redeem > 0} onChange={(e) => setRedeem(e.target.checked ? maxRedeem : 0)} />
+                  Tukar
+                  <input
+                    type="number" min={settings!.min_redeem_points} max={maxRedeem} value={redeem || ""} disabled={redeem === 0}
+                    onChange={(e) => setRedeem(Math.max(0, Math.min(maxRedeem, Number(e.target.value) || 0)))}
+                    className="w-16 rounded border px-1"
+                  />
+                  poin
+                </label>
+              ) : (
+                <p className="text-xs text-gray-500">Minimal {settings?.min_redeem_points} poin untuk ditukar.</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-3 space-y-0.5 text-sm">
+          {discount > 0 && (
+            <>
+              <div className="flex justify-between"><span>Subtotal</span><span>{rupiah(order.subtotal)}</span></div>
+              <div className="flex justify-between text-green-700"><span>Tukar {redeem} poin</span><span>−{rupiah(discount)}</span></div>
+            </>
+          )}
+        </div>
+        <div className="text-3xl font-bold text-kopi-900">{rupiah(total)}</div>
+        {earn > 0 && <div className="text-xs text-green-700">+{earn} poin untuk customer</div>}
+
         <div className="mt-4 grid grid-cols-4 gap-2">
           {(["cash", "qris", "debit", "transfer"] as PaymentMethod[]).map((m) => (
             <button key={m} onClick={() => setMethod(m)} className={`rounded-lg py-2 text-sm ${method === m ? "bg-kopi-900 text-white" : "bg-kopi-100"}`}>
@@ -208,10 +282,10 @@ function PayModal({ order, onClose, onPaid }: { order: Order; onClose: () => voi
         </div>
         {method === "cash" ? (
           <div className="mt-4">
-            <input autoFocus inputMode="numeric" value={cash ? Number(cash.replace(/\D/g, "")).toLocaleString("id-ID") : ""} onChange={(e) => setCash(e.target.value)} placeholder="Uang diterima" className="w-full rounded-lg border px-3 py-2 text-lg" />
+            <input inputMode="numeric" value={cash ? Number(cash.replace(/\D/g, "")).toLocaleString("id-ID") : ""} onChange={(e) => setCash(e.target.value)} placeholder="Uang diterima" className="w-full rounded-lg border px-3 py-2 text-lg" />
             <div className="mt-2 flex flex-wrap gap-2">
               {quick.map((v) => (
-                <button key={v} onClick={() => setCash(String(v))} className="rounded-lg bg-kopi-50 px-3 py-1 text-sm ring-1 ring-kopi-200">{v === order.total ? "Uang pas" : rupiah(v)}</button>
+                <button key={v} onClick={() => setCash(String(v))} className="rounded-lg bg-kopi-50 px-3 py-1 text-sm ring-1 ring-kopi-200">{v === total ? "Uang pas" : rupiah(v)}</button>
               ))}
             </div>
             <div className="mt-3 flex justify-between">

@@ -1,8 +1,8 @@
 # Forka Menu Online
 
-Sistem coffee shop Forka: menu online, order dari HP lewat QR meja, dan kasir. Siap multi-outlet.
+Sistem coffee shop Forka: menu online, order dari HP lewat QR meja, kasir, member & poin, dan absen karyawan. Siap multi-outlet.
 
-## Fase 1 (yang ada sekarang)
+## Fase 1: Menu online & kasir
 
 | Halaman | Untuk siapa | Fungsi |
 |---|---|---|
@@ -21,10 +21,37 @@ Peran staff:
 
 Harga selalu dihitung ulang di database, jadi customer tidak bisa mengubah harga dari HP.
 
+## Fase 2: Member & poin
+
+| Halaman | Untuk siapa | Fungsi |
+|---|---|---|
+| `/poin` | Customer | Masukkan nomor HP, lihat poin + riwayat. Tanpa install aplikasi. QR-nya bisa dicetak dari Admin → Member |
+| `/kasir` (saat bayar) | Kasir | Isi/cek nomor HP member, member baru otomatis terdaftar, tukar poin jadi potongan |
+| `/admin` → Member | Admin/Owner | Daftar & cari member, riwayat poin, koreksi poin manual (wajib isi alasan), atur nilai poin (owner) |
+
+Aturan default (bisa diubah owner): belanja Rp10.000 = 1 poin, 1 poin = potongan Rp1.000, minimal tukar 10 poin. Poin dihitung dari total setelah potongan, berlaku di semua outlet. Semua perubahan poin tercatat di riwayat.
+
+Catatan: saat ini siapa pun yang tahu nomor HP bisa melihat poinnya (nama disingkat, nomor disamarkan). Verifikasi OTP direncanakan menyusul.
+
+## Fase 3: Absen karyawan
+
+| Halaman | Untuk siapa | Fungsi |
+|---|---|---|
+| `/absen` | Karyawan | Di tablet outlet: masukkan PIN → ambil selfie → otomatis tercatat masuk/pulang |
+| `/admin` → Karyawan | Admin/Owner | Tambah karyawan + PIN (4-6 angka, unik per outlet), nonaktifkan, ganti PIN |
+| `/admin` → Absen | Admin/Owner | Rekap jam kerja per periode, log absen dengan foto selfie, download CSV |
+
+Karyawan tidak perlu akun login. Tablet absen cukup login sekali pakai akun kasir outlet tersebut. Foto disimpan di Supabase Storage (bucket privat `absen`), hanya admin/owner yang bisa melihat. Kamera butuh HTTPS (otomatis di Vercel; di laptop `localhost` juga boleh).
+
 ## Setup
 
 1. **Buat project di [Supabase](https://supabase.com)** (tier gratis cukup untuk mulai).
-2. Buka **SQL Editor**, jalankan isi `supabase/migrations/0001_fase1_menu_kasir.sql`.
+2. Buka **SQL Editor**, jalankan file migration **berurutan** (copy-paste isinya, klik Run):
+   - `supabase/migrations/0001_fase1_menu_kasir.sql`
+   - `supabase/migrations/0002_fase2_member_poin.sql`
+   - `supabase/migrations/0003_fase3_absen.sql`
+
+   Kalau 0001 sudah pernah dijalankan, cukup jalankan 0002 lalu 0003.
 3. (Opsional) Jalankan `supabase/seed.sql` untuk data contoh (1 outlet, 3 meja, 7 menu).
 4. **Buat akun owner**: Authentication → Users → Add user (email + password). Salin User UID-nya, lalu di SQL Editor:
    ```sql
@@ -53,6 +80,7 @@ Paling gampang di [Vercel](https://vercel.com): import repo ini, isi 2 environme
 
 ## Rencana berikutnya
 
-- **Fase 2 – Member & poin**: poin otomatis dari nomor HP di pesanan, halaman cek poin via QR (masukin nomor HP + OTP), tukar poin.
-- **Fase 3 – Absen**: PIN + selfie di tablet kasir, rekap jam kerja per outlet.
-- **Fase 4**: QRIS otomatis (Midtrans/Xendit), laporan lengkap, stok bahan, kelola staff dari aplikasi.
+- OTP untuk cek poin (WhatsApp/SMS)
+- QRIS otomatis (Midtrans/Xendit)
+- Laporan lengkap lintas outlet, stok bahan, kelola akun staff dari aplikasi
+- Poles tampilan

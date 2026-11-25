@@ -7,6 +7,12 @@ import { useStaff } from "@/lib/useStaff";
 import { rupiah } from "@/lib/format";
 import StaffGate from "@/components/StaffGate";
 import type { Category, Product, TableRow } from "@/lib/types";
+import MemberAdmin from "./MemberAdmin";
+import KaryawanAdmin from "./KaryawanAdmin";
+import AbsenAdmin from "./AbsenAdmin";
+
+type AdminTab = "menu" | "meja" | "member" | "karyawan" | "absen";
+const TAB_LABEL: Record<AdminTab, string> = { menu: "Menu", meja: "Meja & QR", member: "Member", karyawan: "Karyawan", absen: "Absen" };
 
 export default function AdminPage() {
   const s = useStaff();
@@ -20,7 +26,7 @@ export default function AdminPage() {
 function Admin({ s }: { s: ReturnType<typeof useStaff> }) {
   const outletId = s.outletId!;
   const outlet = s.outlets.find((o) => o.id === outletId);
-  const [tab, setTab] = useState<"menu" | "meja">("menu");
+  const [tab, setTab] = useState<AdminTab>("menu");
 
   return (
     <div className="min-h-screen">
@@ -34,15 +40,19 @@ function Admin({ s }: { s: ReturnType<typeof useStaff> }) {
           <span className="text-sm text-kopi-200">{outlet?.name}</span>
         )}
         <nav className="ml-auto flex gap-1">
-          {(["menu", "meja"] as const).map((k) => (
+          {(Object.keys(TAB_LABEL) as AdminTab[]).map((k) => (
             <button key={k} onClick={() => setTab(k)} className={`rounded-lg px-3 py-1.5 text-sm ${tab === k ? "bg-white text-kopi-900" : "hover:bg-white/10"}`}>
-              {k === "menu" ? "Menu" : "Meja & QR"}
+              {TAB_LABEL[k]}
             </button>
           ))}
         </nav>
         <button onClick={s.signOut} className="text-sm underline">Keluar</button>
       </header>
-      {tab === "menu" ? <MenuAdmin outletId={outletId} /> : <MejaAdmin outletId={outletId} outletSlug={outlet?.slug ?? ""} />}
+      {tab === "menu" && <MenuAdmin outletId={outletId} />}
+      {tab === "meja" && <MejaAdmin outletId={outletId} outletSlug={outlet?.slug ?? ""} />}
+      {tab === "member" && <MemberAdmin isOwner={s.staff?.role === "owner"} />}
+      {tab === "karyawan" && <KaryawanAdmin outletId={outletId} />}
+      {tab === "absen" && <AbsenAdmin outletId={outletId} />}
     </div>
   );
 }
