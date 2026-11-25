@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Forka Menu Online
 
-## Getting Started
+Sistem coffee shop Forka: menu online, order dari HP lewat QR meja, dan kasir. Siap multi-outlet.
 
-First, run the development server:
+## Fase 1 (yang ada sekarang)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+| Halaman | Untuk siapa | Fungsi |
+|---|---|---|
+| `/` | Customer | Pilih outlet |
+| `/menu/[outlet]` | Customer | Lihat menu. Kalau dibuka dari QR meja (`?meja=...`), bisa langsung pesan |
+| `/pesanan/[id]` | Customer | Nomor pesanan + status (menunggu bayar / lunas), update otomatis |
+| `/kasir` | Kasir | Pesanan masuk realtime (ada bunyi), order walk-in, bayar (Tunai/QRIS/Debit/Transfer), kembalian, cetak struk 58mm, rekap omzet hari ini |
+| `/admin` | Admin/Owner | Kelola kategori & menu, tandai menu habis, tambah meja, cetak QR meja |
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Alur order: customer scan QR di meja → pilih menu → kirim → dapat nomor pesanan → bayar di kasir → kasir klik Lunas → struk tercetak.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Peran staff:
+- `owner`: semua outlet
+- `admin`: kelola menu & meja di 1 outlet
+- `cashier`: kasir di 1 outlet
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Harga selalu dihitung ulang di database, jadi customer tidak bisa mengubah harga dari HP.
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. **Buat project di [Supabase](https://supabase.com)** (tier gratis cukup untuk mulai).
+2. Buka **SQL Editor**, jalankan isi `supabase/migrations/0001_fase1_menu_kasir.sql`.
+   > Database yang dibuat dengan `0001` versi lama (sebelum 25 Nov 2026) perlu juga menjalankan `supabase/migrations/0001b_fix_staff_policy.sql`. Gejalanya: login kasir/admin selalu muncul "belum terdaftar sebagai staff". Aman dijalankan ulang.
+3. (Opsional) Jalankan `supabase/seed.sql` untuk data contoh (1 outlet, 3 meja, 7 menu).
+4. **Buat akun owner**: Authentication → Users → Add user (email + password). Salin User UID-nya, lalu di SQL Editor:
+   ```sql
+   insert into public.staff (id, name, role) values ('<USER_UID>', 'Deni', 'owner');
+   ```
+   Untuk kasir: buat user lagi, lalu
+   ```sql
+   insert into public.staff (id, outlet_id, name, role)
+   values ('<USER_UID>', (select id from outlets where slug = 'forka-pusat'), 'Kasir 1', 'cashier');
+   ```
+5. Tambah outlet baru (kalau buka cabang):
+   ```sql
+   insert into public.outlets (slug, name, address) values ('forka-cabang2', 'Forka Coffee - Cabang 2', 'Jl. ...');
+   ```
+6. Salin `.env.example` jadi `.env.local`, isi dari Supabase → Project Settings → API.
+7. Jalankan:
+   ```bash
+   npm install
+   npm run dev
+   ```
+   Buka http://localhost:3000. Kalau pakai seed, coba order di http://localhost:3000/menu/forka-pusat?meja=meja1demo
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Paling gampang di [Vercel](https://vercel.com): import repo ini, isi 2 environment variable dari `.env.example`, deploy. Setelah dapat domain, cetak ulang QR meja dari `/admin` supaya link-nya pakai domain asli.
 
-## Deploy on Vercel
+## Rencana berikutnya
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Fase 2 – Member & poin**: poin otomatis dari nomor HP di pesanan, halaman cek poin via QR (masukin nomor HP + OTP), tukar poin.
+- **Fase 3 – Absen**: PIN + selfie di tablet kasir, rekap jam kerja per outlet.
+- **Fase 4**: QRIS otomatis (Midtrans/Xendit), laporan lengkap, stok bahan, kelola staff dari aplikasi.
