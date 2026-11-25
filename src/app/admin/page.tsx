@@ -199,6 +199,11 @@ function MejaAdmin({ outletId, outletSlug }: { outletId: string; outletSlug: str
   const [area, setArea] = useState("");
   const [filter, setFilter] = useState<string>("__all");
   const [origin, setOrigin] = useState("");
+  const [umumToken, setUmumToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase().rpc("get_outlet_qr_token", { p_outlet_id: outletId }).then(({ data }) => setUmumToken(data));
+  }, [outletId]);
 
   const load = useCallback(async () => {
     const { data } = await supabase().from("tables").select("*").eq("outlet_id", outletId)
@@ -252,7 +257,7 @@ function MejaAdmin({ outletId, outletSlug }: { outletId: string; outletSlug: str
           Cetak QR {filter === "__all" ? "semua" : filter || "tanpa area"}
         </button>
       </div>
-      <p className="mt-2 text-sm text-gray-500 print:hidden">Tempel QR di tiap meja. Customer scan, pesan dari HP, lalu bayar di kasir. Area bisa diganti langsung di kartu meja.</p>
+      <p className="mt-2 text-sm text-gray-500 print:hidden">QR Umum ditempel di pintu masuk atau dekat kasir. QR meja ditempel di tiap meja supaya kasir tahu posisi customer. Customer scan, pilih menu, dapat nomor antrian, lalu bayar di kasir. Area bisa diganti langsung di kartu meja.</p>
 
       {areas.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2 print:hidden">
@@ -263,6 +268,19 @@ function MejaAdmin({ outletId, outletSlug }: { outletId: string; outletSlug: str
       )}
 
       <div className="qr-sheet mt-4 space-y-6">
+        {umumToken && (filter === "__all") && (
+          <div>
+            <h2 className="mb-2 font-bold text-kopi-900">QR Umum <span className="text-sm font-normal text-gray-500">(pintu masuk / dekat kasir, tidak terikat meja)</span></h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="flex flex-col items-center rounded-xl bg-white p-4 shadow-sm ring-2 ring-kopi-500 print:break-inside-avoid print:shadow-none">
+                <div className="mb-2 font-bold">Pesan dari HP</div>
+                <QRCodeSVG value={`${origin}/menu/${outletSlug}?meja=${umumToken}`} size={160} />
+                <div className="mt-2 text-center text-xs text-gray-500">Scan, pilih menu, lalu sebut nama ke kasir</div>
+                <a href={`${origin}/menu/${outletSlug}?meja=${umumToken}`} target="_blank" className="mt-2 text-xs text-kopi-600 underline print:hidden">Buka</a>
+              </div>
+            </div>
+          </div>
+        )}
         {groups.map((g) => (
           <div key={g.area ?? "__none"}>
             <h2 className="mb-2 font-bold text-kopi-900">{g.area ?? "Tanpa area"} <span className="text-sm font-normal text-gray-500">({g.items.length} meja)</span></h2>

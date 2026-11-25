@@ -6,7 +6,9 @@ export const jam = (iso: string) =>
 export const tanggalJam = (iso: string) =>
   new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" });
 
-export const PAYMENT_LABEL: Record<string, string> = { cash: "Tunai", qris: "QRIS", debit: "Debit", transfer: "Transfer" };
+// Pembayaran di kasir: tunai atau QRIS lewat mesin EDC (dikonfirmasi manual oleh kasir).
+// debit/transfer tetap ada di database untuk data lama, tapi tidak ditawarkan di kasir.
+export const PAYMENT_LABEL: Record<string, string> = { cash: "Tunai", qris: "QRIS (EDC)", debit: "Debit", transfer: "Transfer" };
 
 /** Awal hari ini (WIB) dalam ISO, untuk filter laporan harian. */
 export function startOfTodayWIB(): string {

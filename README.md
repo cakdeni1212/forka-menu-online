@@ -9,10 +9,16 @@ Sistem coffee shop Forka: menu online, order dari HP lewat QR meja, kasir, membe
 | `/` | Customer | Pilih outlet |
 | `/menu/[outlet]` | Customer | Lihat menu. Kalau dibuka dari QR meja (`?meja=...`), bisa langsung pesan |
 | `/pesanan/[id]` | Customer | Nomor pesanan + status (menunggu bayar / lunas), update otomatis |
-| `/kasir` | Kasir | Pesanan masuk realtime (ada bunyi), order walk-in, bayar (Tunai/QRIS/Debit/Transfer), kembalian, cetak struk 58mm, rekap omzet hari ini |
+| `/kasir` | Kasir | Antrian pesanan realtime (ada bunyi), cari pakai nama/nomor antrian, order walk-in, bayar Tunai / QRIS (EDC) dengan konfirmasi manual, kembalian, cetak struk 58mm, rekap omzet hari ini |
 | `/admin` | Admin/Owner | Kelola kategori & menu, tandai menu habis, tambah meja per area (Lantai 1, Lantai 2, Outdoor, ...), cetak QR meja per area |
 
-Alur order: customer scan QR di meja → pilih menu → kirim → dapat nomor pesanan → bayar di kasir → kasir klik Lunas → struk tercetak.
+Alur order:
+1. Customer pesan langsung di kasir, **atau** scan QR (QR Umum di pintu masuk/kasir, atau QR meja) lalu pilih menu sendiri di HP.
+2. Setelah kirim, customer dapat **nomor antrian** (A-001, A-002, ... reset tiap hari) dan namanya tampil besar di HP.
+3. Customer ke kasir, sebut nama atau nomor antrian. Kasir ketik di kolom cari, Enter untuk buka pembayaran.
+4. Bayar tunai atau QRIS di mesin EDC (terpisah dari sistem). Kasir klik **Lunas** setelah pembayaran berhasil, struk tercetak.
+
+Tidak ada payment gateway: sistem hanya mencatat metode bayar (Tunai / QRIS) yang dipilih kasir.
 
 Peran staff:
 - `owner`: semua outlet
@@ -65,6 +71,7 @@ Karyawan tidak perlu akun login. Tablet absen cukup login sekali pakai akun kasi
    - `supabase/migrations/0003_fase3_absen.sql`
    - `supabase/migrations/0004_area_meja.sql` (area/lantai meja)
    - `supabase/migrations/0005_dashboard_penjualan.sql` (dashboard admin)
+   - `supabase/migrations/0006_alur_order_qr_umum.sql` (QR umum, nomor antrian A-001, nama wajib)
 
    Kalau 0001 sudah pernah dijalankan, cukup jalankan 0002 lalu 0003.
    > Database yang dibuat dengan `0001` versi lama (sebelum 25 Nov 2026) perlu juga menjalankan `supabase/migrations/0001b_fix_staff_policy.sql`. Gejalanya: login kasir/admin selalu muncul "belum terdaftar sebagai staff". Aman dijalankan ulang.
@@ -97,6 +104,5 @@ Paling gampang di [Vercel](https://vercel.com): import repo ini, isi 2 environme
 ## Rencana berikutnya
 
 - OTP untuk cek poin (WhatsApp/SMS)
-- QRIS otomatis (Midtrans/Xendit)
 - Laporan lengkap lintas outlet, stok bahan, kelola akun staff dari aplikasi
 - Poles tampilan

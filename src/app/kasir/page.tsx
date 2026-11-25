@@ -66,8 +66,18 @@ function Kasir({ s }: { s: ReturnType<typeof useStaff> }) {
   const [areaFilter, setAreaFilter] = useState("__all");
   const pendingAll = orders.filter((o) => o.status === "pending");
   const areas = [...new Set(pendingAll.map((o) => o.tables?.area).filter((a): a is string => !!a))].sort();
-  const pending = pendingAll.filter((o) =>
-    areaFilter === "__all" ? true : areaFilter === "__none" ? !o.tables?.area : o.tables?.area === areaFilter);
+  const [search, setSearch] = useState("");
+  // Antrian: yang paling lama menunggu di depan. Cari pakai nama atau nomor antrian ("12" cocok dengan A-012).
+  const q = search.trim().toLowerCase();
+  const qDigits = q.replace(/\D/g, "").replace(/^0+/, "");
+  const pending = pendingAll
+    .filter((o) => (areaFilter === "__all" ? true : areaFilter === "__none" ? !o.tables?.area : o.tables?.area === areaFilter))
+    .filter((o) => {
+      if (!q) return true;
+      if (qDigits && o.order_no.replace(/\D/g, "").replace(/^0+/, "") === qDigits) return true;
+      return (o.customer_name ?? "").toLowerCase().includes(q) || o.order_no.toLowerCase().includes(q);
+    })
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   async function cancel(o: Order) {
     if (!confirm(`Batalkan pesanan ${o.order_no}?`)) return;
@@ -101,6 +111,17 @@ function Kasir({ s }: { s: ReturnType<typeof useStaff> }) {
 
       {tab === "masuk" && (
         <section className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="sm:col-span-2 lg:col-span-3">
+            <input
+              autoFocus value={search} onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && pending.length === 1) setPaying(pending[0]);
+                if (e.key === "Escape") setSearch("");
+              }}
+              placeholder="Cari nama customer atau nomor antrian (contoh: 12 atau Rina), Enter untuk bayar"
+              className="w-full rounded-xl border-2 border-kopi-200 bg-white px-4 py-3 text-lg focus:border-kopi-500 focus:outline-none"
+            />
+          </div>
           {areas.length > 0 && (
             <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
               {[["__all", `Semua (${pendingAll.length})`], ...areas.map((a) => [a, `${a} (${pendingAll.filter((o) => o.tables?.area === a).length})`]), ["__none", "Kasir / tanpa area"]].map(([k, l]) => (
@@ -108,7 +129,9 @@ function Kasir({ s }: { s: ReturnType<typeof useStaff> }) {
               ))}
             </div>
           )}
-          {pending.length === 0 && <p className="text-gray-500">Belum ada pesanan yang menunggu pembayaran.</p>}
+          {pending.length === 0 && (
+            <p className="text-gray-500">{q ? `Tidak ada pesanan belum bayar yang cocok dengan "${search}".` : "Belum ada pesanan yang menunggu pembayaran."}</p>
+          )}
           {pending.map((o) => (
             <OrderCard key={o.id} o={o}>
               <div className="mt-3 flex gap-2">
@@ -155,10 +178,11 @@ function OrderCard({ o, children }: { o: Order; children?: React.ReactNode }) {
     <div className="rounded-xl bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-2xl font-bold text-kopi-900">{o.order_no}</div>
-          <div className="text-sm text-gray-600">
-            {o.customer_name ?? "Tanpa nama"} · {tableName(o.tables) ?? (o.source === "pos" ? "Kasir" : "-")}
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-kopi-900">{o.order_no}</span>
+            <span className="text-xl font-semibold">{o.customer_name ?? "Tanpa nama"}</span>
           </div>
+          <div className="text-sm text-gray-600">{tableName(o.tables) ?? (o.source === "pos" ? "Di kasir" : "Ambil di kasir")}</div>
         </div>
         <div className="text-right text-xs text-gray-500">
           <div>{jam(o.created_at)}</div>
@@ -284,8 +308,8 @@ function PayModal({ order, onClose, onPaid }: { order: Order; onClose: () => voi
         <div className="text-3xl font-bold text-kopi-900">{rupiah(total)}</div>
         {earn > 0 && <div className="text-xs text-green-700">+{earn} poin untuk customer</div>}
 
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {(["cash", "qris", "debit", "transfer"] as PaymentMethod[]).map((m) => (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {(["cash", "qris"] as PaymentMethod[]).map((m) => (
             <button key={m} onClick={() => setMethod(m)} className={`rounded-lg py-2 text-sm ${method === m ? "bg-kopi-900 text-white" : "bg-kopi-100"}`}>
               {PAYMENT_LABEL[m]}
             </button>
@@ -306,7 +330,7 @@ function PayModal({ order, onClose, onPaid }: { order: Order; onClose: () => voi
           </div>
         ) : (
           <p className="mt-4 rounded-lg bg-kopi-50 p-3 text-sm">
-            Pastikan pembayaran {PAYMENT_LABEL[method]} sudah masuk sebelum konfirmasi.
+            Proses QRIS di mesin EDC. Konfirmasi lunas setelah struk EDC keluar dan transaksi berhasil.
           </p>
         )}
         <button onClick={pay} disabled={busy} className="mt-5 w-full rounded-xl bg-green-700 py-3 font-semibold text-white disabled:opacity-60">

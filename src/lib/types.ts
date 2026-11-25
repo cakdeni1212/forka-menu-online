@@ -1,3 +1,5 @@
+/** Kolom outlet yang boleh dibaca aplikasi (qr_token sengaja tidak, lihat 0006). */
+export const OUTLET_COLS = "id, slug, name, address, phone, is_active";
 export type Outlet = { id: string; slug: string; name: string; address: string | null; phone: string | null; is_active: boolean };
 export type Category = { id: string; outlet_id: string; name: string; sort_order: number };
 export type Product = {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase, errMsg } from "@/lib/supabase";
 import type { Outlet } from "@/lib/types";
+import { OUTLET_COLS } from "@/lib/types";
 
 export default function Home() {
   const [outlets, setOutlets] = useState<Outlet[] | null>(null);
@@ -11,7 +12,7 @@ export default function Home() {
 
   useEffect(() => {
     supabase()
-      .from("outlets").select("*").eq("is_active", true).order("name")
+      .from("outlets").select(OUTLET_COLS).eq("is_active", true).order("name")
       .then(({ data, error }) => (error ? setError(errMsg(error)) : setOutlets(data ?? [])));
   }, []);
 

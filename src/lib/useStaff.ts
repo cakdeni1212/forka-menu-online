@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { Outlet, Staff } from "@/lib/types";
+import { OUTLET_COLS } from "@/lib/types";
 
 /** Session login staff + data staff + outlet yang boleh diakses. */
 export function useStaff() {
@@ -24,7 +25,7 @@ export function useStaff() {
     const { data: st } = await sb.from("staff").select("*").eq("id", s.user.id).maybeSingle();
     setStaff(st);
     if (st) {
-      const q = sb.from("outlets").select("*").order("name");
+      const q = sb.from("outlets").select(OUTLET_COLS).order("name");
       const { data: os } = st.role === "owner" ? await q : await q.eq("id", st.outlet_id);
       setOutlets(os ?? []);
       const saved = localStorage.getItem("forka_outlet");
