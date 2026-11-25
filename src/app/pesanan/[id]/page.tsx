@@ -7,11 +7,11 @@ import type { OrderItem, OrderStatus } from "@/lib/types";
 
 type PublicOrder = {
   id: string; order_no: string; status: OrderStatus; total: number; created_at: string;
-  customer_name: string | null; outlet_name: string; table_label: string | null; items: OrderItem[];
+  customer_name: string | null; outlet_name: string; table_label: string | null; table_area: string | null; items: OrderItem[];
 };
 
 const STATUS: Record<OrderStatus, { label: string; desc: string; cls: string }> = {
-  pending: { label: "Menunggu pembayaran", desc: "Silakan ke kasir dan sebutkan nomor pesanan kamu.", cls: "bg-amber-100 text-amber-800" },
+  pending: { label: "Belum dibayar", desc: "Ke kasir, sebutkan nama atau nomor antrian ini, lalu bayar tunai atau QRIS.", cls: "bg-amber-100 text-amber-800" },
   paid: { label: "Lunas", desc: "Terima kasih! Pesanan kamu sedang disiapkan.", cls: "bg-green-100 text-green-800" },
   cancelled: { label: "Dibatalkan", desc: "Pesanan ini dibatalkan. Hubungi kasir kalau ada pertanyaan.", cls: "bg-gray-200 text-gray-700" },
 };
@@ -48,16 +48,17 @@ export default function PesananPage({ params }: { params: Promise<{ id: string }
   return (
     <main className="mx-auto max-w-md p-5">
       <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-        <p className="text-sm text-gray-500">{order.outlet_name}{order.table_label ? ` · ${order.table_label}` : ""}</p>
-        <p className="mt-3 text-sm text-gray-500">Nomor pesanan</p>
-        <p className="text-5xl font-bold tracking-wider text-kopi-900">{order.order_no}</p>
+        <p className="text-sm text-gray-500">{order.outlet_name}{order.table_label ? ` · ${order.table_area ? order.table_area + " · " : ""}${order.table_label}` : ""}</p>
+        <p className="mt-3 text-sm text-gray-500">Nomor antrian</p>
+        <p className="text-6xl font-bold tracking-wider text-kopi-900">{order.order_no}</p>
+        {order.customer_name && <p className="mt-1 text-2xl font-semibold text-kopi-700">{order.customer_name}</p>}
         <span className={`mt-4 inline-block rounded-full px-4 py-1 text-sm font-medium ${s.cls}`}>{s.label}</span>
         <p className="mt-3 text-sm text-gray-600">{s.desc}</p>
       </div>
 
       <div className="mt-4 rounded-2xl bg-white p-5 shadow-sm">
         <div className="flex justify-between text-sm text-gray-500">
-          <span>{order.customer_name ?? "-"}</span>
+          <span>Pesanan kamu</span>
           <span>{jam(order.created_at)}</span>
         </div>
         <ul className="mt-3 divide-y text-sm">

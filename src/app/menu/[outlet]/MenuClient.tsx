@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase, errMsg } from "@/lib/supabase";
 import { rupiah } from "@/lib/format";
-import type { CartLine, Category, Outlet, Product } from "@/lib/types";
+import { OUTLET_COLS, tableName, type CartLine, type Category, type Outlet, type Product } from "@/lib/types";
 
-type TableInfo = { id: string; label: string; outlet_id: string; outlet_slug: string };
+// id & label null = QR umum outlet (bukan meja)
+type TableInfo = { id: string | null; label: string | null; area: string | null; outlet_id: string; outlet_slug: string };
 
 export default function MenuClient({ outletSlug }: { outletSlug: string }) {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function MenuClient({ outletSlug }: { outletSlug: string }) {
   useEffect(() => {
     (async () => {
       const sb = supabase();
-      const { data: o, error: oe } = await sb.from("outlets").select("*").eq("slug", outletSlug).maybeSingle();
+      const { data: o, error: oe } = await sb.from("outlets").select(OUTLET_COLS).eq("slug", outletSlug).maybeSingle();
       if (oe || !o) {
         setError(oe ? errMsg(oe) : "Outlet tidak ditemukan");
         setLoading(false);
@@ -47,7 +48,7 @@ export default function MenuClient({ outletSlug }: { outletSlug: string }) {
       if (mejaToken) {
         const { data: t } = await sb.rpc("get_table_by_token", { p_token: mejaToken });
         if (t && t.outlet_id === o.id) setTable(t);
-        else setError("QR meja tidak valid. Kamu tetap bisa lihat menu, tapi pesan langsung ke kasir ya.");
+        else setError("QR tidak valid. Kamu tetap bisa lihat menu, tapi pesan langsung ke kasir ya.");
       }
       setLoading(false);
     })();
@@ -113,9 +114,11 @@ export default function MenuClient({ outletSlug }: { outletSlug: string }) {
       <header className="bg-kopi-900 px-5 pb-5 pt-6 text-white">
         <h1 className="text-2xl font-bold">{outlet.name}</h1>
         {table ? (
-          <p className="mt-1 inline-block rounded-full bg-white/15 px-3 py-0.5 text-sm">{table.label}</p>
+          <p className="mt-1 inline-block rounded-full bg-white/15 px-3 py-0.5 text-sm">
+            {table.label ? tableName({ label: table.label, area: table.area }) : "Pesan dari HP, bayar di kasir"}
+          </p>
         ) : (
-          <p className="mt-1 text-sm text-kopi-200">Scan QR di meja untuk pesan langsung dari HP</p>
+          <p className="mt-1 text-sm text-kopi-200">Scan QR di meja atau di kasir untuk pesan dari HP</p>
         )}
       </header>
 
@@ -226,7 +229,7 @@ export default function MenuClient({ outletSlug }: { outletSlug: string }) {
             >
               {sending ? "Mengirim..." : "Kirim pesanan"}
             </button>
-            <p className="mt-2 text-center text-xs text-gray-500">Pembayaran dilakukan di kasir setelah pesanan dikirim</p>
+            <p className="mt-2 text-center text-xs text-gray-500">Setelah kirim, kamu dapat nomor antrian. Sebutkan nama atau nomor antrian ke kasir, lalu bayar di kasir (tunai / QRIS).</p>
           </div>
         </div>
       )}

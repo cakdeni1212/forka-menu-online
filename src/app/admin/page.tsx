@@ -7,6 +7,13 @@ import { useStaff } from "@/lib/useStaff";
 import { rupiah } from "@/lib/format";
 import StaffGate from "@/components/StaffGate";
 import type { Category, Product, TableRow } from "@/lib/types";
+import MemberAdmin from "./MemberAdmin";
+import KaryawanAdmin from "./KaryawanAdmin";
+import AbsenAdmin from "./AbsenAdmin";
+import DashboardAdmin from "./DashboardAdmin";
+
+type AdminTab = "dashboard" | "menu" | "meja" | "member" | "karyawan" | "absen";
+const TAB_LABEL: Record<AdminTab, string> = { dashboard: "Dashboard", menu: "Menu", meja: "Meja & QR", member: "Member", karyawan: "Karyawan", absen: "Absen" };
 
 export default function AdminPage() {
   const s = useStaff();
@@ -20,7 +27,7 @@ export default function AdminPage() {
 function Admin({ s }: { s: ReturnType<typeof useStaff> }) {
   const outletId = s.outletId!;
   const outlet = s.outlets.find((o) => o.id === outletId);
-  const [tab, setTab] = useState<"menu" | "meja">("menu");
+  const [tab, setTab] = useState<AdminTab>("dashboard");
 
   return (
     <div className="min-h-screen">
@@ -34,15 +41,20 @@ function Admin({ s }: { s: ReturnType<typeof useStaff> }) {
           <span className="text-sm text-kopi-200">{outlet?.name}</span>
         )}
         <nav className="ml-auto flex gap-1">
-          {(["menu", "meja"] as const).map((k) => (
+          {(Object.keys(TAB_LABEL) as AdminTab[]).map((k) => (
             <button key={k} onClick={() => setTab(k)} className={`rounded-lg px-3 py-1.5 text-sm ${tab === k ? "bg-white text-kopi-900" : "hover:bg-white/10"}`}>
-              {k === "menu" ? "Menu" : "Meja & QR"}
+              {TAB_LABEL[k]}
             </button>
           ))}
         </nav>
         <button onClick={s.signOut} className="text-sm underline">Keluar</button>
       </header>
-      {tab === "menu" ? <MenuAdmin outletId={outletId} /> : <MejaAdmin outletId={outletId} outletSlug={outlet?.slug ?? ""} />}
+      {tab === "dashboard" && <DashboardAdmin outletId={outletId} outlets={s.outlets} isOwner={s.staff?.role === "owner"} />}
+      {tab === "menu" && <MenuAdmin outletId={outletId} />}
+      {tab === "meja" && <MejaAdmin outletId={outletId} outletSlug={outlet?.slug ?? ""} />}
+      {tab === "member" && <MemberAdmin isOwner={s.staff?.role === "owner"} />}
+      {tab === "karyawan" && <KaryawanAdmin outletId={outletId} />}
+      {tab === "absen" && <AbsenAdmin outletId={outletId} />}
     </div>
   );
 }
@@ -184,10 +196,18 @@ function MenuAdmin({ outletId }: { outletId: string }) {
 function MejaAdmin({ outletId, outletSlug }: { outletId: string; outletSlug: string }) {
   const [tables, setTables] = useState<TableRow[]>([]);
   const [label, setLabel] = useState("");
+  const [area, setArea] = useState("");
+  const [filter, setFilter] = useState<string>("__all");
   const [origin, setOrigin] = useState("");
+  const [umumToken, setUmumToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase().rpc("get_outlet_qr_token", { p_outlet_id: outletId }).then(({ data }) => setUmumToken(data));
+  }, [outletId]);
 
   const load = useCallback(async () => {
-    const { data } = await supabase().from("tables").select("*").eq("outlet_id", outletId).order("label");
+    const { data } = await supabase().from("tables").select("*").eq("outlet_id", outletId)
+      .order("area", { nullsFirst: false }).order("sort_order").order("label");
     setTables(data ?? []);
   }, [outletId]);
   useEffect(() => {
@@ -195,43 +215,100 @@ function MejaAdmin({ outletId, outletSlug }: { outletId: string; outletSlug: str
     load();
   }, [load]);
 
+  // Daftar area yang sudah dipakai di outlet ini (urut nama, "tanpa area" di akhir)
+  const areas = [...new Set(tables.map((t) => t.area).filter((a): a is string => !!a))].sort((a, b) => a.localeCompare(b, "id", { numeric: true }));
+  const groups: { area: string | null; items: TableRow[] }[] = [
+    ...areas.map((a) => ({ area: a as string | null, items: tables.filter((t) => t.area === a) })),
+    { area: null, items: tables.filter((t) => !t.area) },
+  ].filter((g) => g.items.length > 0 && (filter === "__all" || (g.area ?? "") === filter));
+
   async function add() {
     if (!label.trim()) return;
-    const { error } = await supabase().from("tables").insert({ outlet_id: outletId, label: label.trim() });
-    if (error) return alert(errMsg(error));
+    const { error } = await supabase().from("tables").insert({ outlet_id: outletId, label: label.trim(), area: area.trim() || null });
+    if (error) return alert(error.code === "23505" ? "Nama meja itu sudah ada di area yang sama" : errMsg(error));
     setLabel("");
     load();
   }
 
+  async function changeArea(t: TableRow, value: string) {
+    const next = value.trim() || null;
+    if (next === t.area) return;
+    const { error } = await supabase().from("tables").update({ area: next }).eq("id", t.id);
+    if (error) alert(error.code === "23505" ? "Nama meja itu sudah ada di area tujuan" : errMsg(error));
+    load();
+  }
+
   async function remove(t: TableRow) {
-    if (!confirm(`Hapus ${t.label}? QR lama tidak akan bisa dipakai lagi.`)) return;
+    if (!confirm(`Hapus ${t.area ? t.area + " · " : ""}${t.label}? QR lama tidak akan bisa dipakai lagi.`)) return;
     await supabase().from("tables").delete().eq("id", t.id);
     load();
   }
 
   return (
     <section className="p-4">
+      <datalist id="area-list">
+        {areas.map((a) => <option key={a} value={a} />)}
+      </datalist>
       <div className="flex flex-wrap gap-2 print:hidden">
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nama meja, contoh: Meja 4" className="rounded-lg border px-3 py-2 text-sm" />
+        <input value={area} onChange={(e) => setArea(e.target.value)} list="area-list" placeholder="Area, contoh: Lantai 2" className="rounded-lg border px-3 py-2 text-sm" />
+        <input value={label} onChange={(e) => setLabel(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Nama meja, contoh: Meja 4" className="rounded-lg border px-3 py-2 text-sm" />
         <button onClick={add} className="rounded-lg bg-kopi-900 px-4 text-sm text-white">Tambah meja</button>
-        <button onClick={() => window.print()} className="ml-auto rounded-lg px-4 text-sm ring-1 ring-kopi-500">Cetak semua QR</button>
+        <button onClick={() => window.print()} className="ml-auto rounded-lg px-4 text-sm ring-1 ring-kopi-500">
+          Cetak QR {filter === "__all" ? "semua" : filter || "tanpa area"}
+        </button>
       </div>
-      <p className="mt-2 text-sm text-gray-500 print:hidden">Tempel QR di tiap meja. Customer scan, pesan dari HP, lalu bayar di kasir.</p>
-      <div className="qr-sheet mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {tables.map((t) => {
-          const url = `${origin}/menu/${outletSlug}?meja=${t.token}`;
-          return (
-            <div key={t.id} className="flex flex-col items-center rounded-xl bg-white p-4 shadow-sm print:break-inside-avoid print:shadow-none print:ring-1 print:ring-gray-300">
-              <div className="mb-2 font-bold">{t.label}</div>
-              <QRCodeSVG value={url} size={160} />
-              <div className="mt-2 text-center text-xs text-gray-500">Scan untuk pesan</div>
-              <div className="mt-2 flex gap-3 text-xs print:hidden">
-                <a href={url} target="_blank" className="text-kopi-600 underline">Buka</a>
-                <button onClick={() => remove(t)} className="text-red-700">Hapus</button>
+      <p className="mt-2 text-sm text-gray-500 print:hidden">QR Umum ditempel di pintu masuk atau dekat kasir. QR meja ditempel di tiap meja supaya kasir tahu posisi customer. Customer scan, pilih menu, dapat nomor antrian, lalu bayar di kasir. Area bisa diganti langsung di kartu meja.</p>
+
+      {areas.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2 print:hidden">
+          {[["__all", "Semua"], ...areas.map((a) => [a, a]), ...(tables.some((t) => !t.area) ? [["", "Tanpa area"]] : [])].map(([k, l]) => (
+            <button key={k} onClick={() => setFilter(k)} className={`rounded-full px-3 py-1 text-sm ${filter === k ? "bg-kopi-700 text-white" : "bg-white ring-1 ring-kopi-200"}`}>{l}</button>
+          ))}
+        </div>
+      )}
+
+      <div className="qr-sheet mt-4 space-y-6">
+        {umumToken && (filter === "__all") && (
+          <div>
+            <h2 className="mb-2 font-bold text-kopi-900">QR Umum <span className="text-sm font-normal text-gray-500">(pintu masuk / dekat kasir, tidak terikat meja)</span></h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="flex flex-col items-center rounded-xl bg-white p-4 shadow-sm ring-2 ring-kopi-500 print:break-inside-avoid print:shadow-none">
+                <div className="mb-2 font-bold">Pesan dari HP</div>
+                <QRCodeSVG value={`${origin}/menu/${outletSlug}?meja=${umumToken}`} size={160} />
+                <div className="mt-2 text-center text-xs text-gray-500">Scan, pilih menu, lalu sebut nama ke kasir</div>
+                <a href={`${origin}/menu/${outletSlug}?meja=${umumToken}`} target="_blank" className="mt-2 text-xs text-kopi-600 underline print:hidden">Buka</a>
               </div>
             </div>
-          );
-        })}
+          </div>
+        )}
+        {groups.map((g) => (
+          <div key={g.area ?? "__none"}>
+            <h2 className="mb-2 font-bold text-kopi-900">{g.area ?? "Tanpa area"} <span className="text-sm font-normal text-gray-500">({g.items.length} meja)</span></h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {g.items.map((t) => {
+                const url = `${origin}/menu/${outletSlug}?meja=${t.token}`;
+                return (
+                  <div key={t.id} className="flex flex-col items-center rounded-xl bg-white p-4 shadow-sm print:break-inside-avoid print:shadow-none print:ring-1 print:ring-gray-300">
+                    {t.area && <div className="text-xs uppercase tracking-wide text-gray-500">{t.area}</div>}
+                    <div className="mb-2 font-bold">{t.label}</div>
+                    <QRCodeSVG value={url} size={160} />
+                    <div className="mt-2 text-center text-xs text-gray-500">Scan untuk pesan</div>
+                    <div className="mt-2 flex items-center gap-2 text-xs print:hidden">
+                      <input
+                        defaultValue={t.area ?? ""} list="area-list" placeholder="Area"
+                        onBlur={(e) => changeArea(t, e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                        className="w-24 rounded border px-1.5 py-0.5"
+                      />
+                      <a href={url} target="_blank" className="text-kopi-600 underline">Buka</a>
+                      <button onClick={() => remove(t)} className="text-red-700">Hapus</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
