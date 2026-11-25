@@ -25,6 +25,7 @@ Harga selalu dihitung ulang di database, jadi customer tidak bisa mengubah harga
 
 1. **Buat project di [Supabase](https://supabase.com)** (tier gratis cukup untuk mulai).
 2. Buka **SQL Editor**, jalankan isi `supabase/migrations/0001_fase1_menu_kasir.sql`.
+   > Database yang dibuat dengan `0001` versi lama (sebelum 25 Nov 2026) perlu juga menjalankan `supabase/migrations/0001b_fix_staff_policy.sql`. Gejalanya: login kasir/admin selalu muncul "belum terdaftar sebagai staff". Aman dijalankan ulang.
 3. (Opsional) Jalankan `supabase/seed.sql` untuk data contoh (1 outlet, 3 meja, 7 menu).
 4. **Buat akun owner**: Authentication → Users → Add user (email + password). Salin User UID-nya, lalu di SQL Editor:
    ```sql

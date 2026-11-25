@@ -122,6 +122,12 @@ returns public.staff_role language sql stable security definer set search_path =
   select role from public.staff where id = auth.uid() and is_active
 $$;
 
+-- outlet staff yang sedang login (security definer supaya policy tabel staff tidak rekursif)
+create or replace function public.current_staff_outlet()
+returns uuid language sql stable security definer set search_path = public as $$
+  select outlet_id from public.staff where id = auth.uid() and is_active
+$$;
+
 create or replace function public.can_access_outlet(p_outlet uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select exists (
@@ -364,7 +370,7 @@ create policy tables_manage on public.tables for all
 -- Staff: lihat diri sendiri, admin/owner lihat staff outletnya
 create policy staff_read on public.staff for select
   using (id = auth.uid() or public.current_staff_role() = 'owner'
-         or (public.current_staff_role() = 'admin' and outlet_id is not distinct from (select outlet_id from public.staff where id = auth.uid())));
+         or (public.current_staff_role() = 'admin' and outlet_id = public.current_staff_outlet()));
 create policy staff_owner_write on public.staff for all
   using (public.current_staff_role() = 'owner') with check (public.current_staff_role() = 'owner');
 
