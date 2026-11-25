@@ -7,7 +7,7 @@ import type { OrderItem, OrderStatus } from "@/lib/types";
 
 type PublicOrder = {
   id: string; order_no: string; status: OrderStatus; total: number; created_at: string;
-  customer_name: string | null; outlet_name: string; table_label: string | null; items: OrderItem[];
+  customer_name: string | null; outlet_name: string; table_label: string | null; table_area: string | null; items: OrderItem[];
 };
 
 const STATUS: Record<OrderStatus, { label: string; desc: string; cls: string }> = {
@@ -48,7 +48,7 @@ export default function PesananPage({ params }: { params: Promise<{ id: string }
   return (
     <main className="mx-auto max-w-md p-5">
       <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-        <p className="text-sm text-gray-500">{order.outlet_name}{order.table_label ? ` · ${order.table_label}` : ""}</p>
+        <p className="text-sm text-gray-500">{order.outlet_name}{order.table_label ? ` · ${order.table_area ? order.table_area + " · " : ""}${order.table_label}` : ""}</p>
         <p className="mt-3 text-sm text-gray-500">Nomor pesanan</p>
         <p className="text-5xl font-bold tracking-wider text-kopi-900">{order.order_no}</p>
         <span className={`mt-4 inline-block rounded-full px-4 py-1 text-sm font-medium ${s.cls}`}>{s.label}</span>

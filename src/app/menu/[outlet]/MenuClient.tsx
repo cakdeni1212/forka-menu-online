@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase, errMsg } from "@/lib/supabase";
 import { rupiah } from "@/lib/format";
-import type { CartLine, Category, Outlet, Product } from "@/lib/types";
+import { tableName, type CartLine, type Category, type Outlet, type Product } from "@/lib/types";
 
-type TableInfo = { id: string; label: string; outlet_id: string; outlet_slug: string };
+type TableInfo = { id: string; label: string; area: string | null; outlet_id: string; outlet_slug: string };
 
 export default function MenuClient({ outletSlug }: { outletSlug: string }) {
   const router = useRouter();
@@ -113,7 +113,7 @@ export default function MenuClient({ outletSlug }: { outletSlug: string }) {
       <header className="bg-kopi-900 px-5 pb-5 pt-6 text-white">
         <h1 className="text-2xl font-bold">{outlet.name}</h1>
         {table ? (
-          <p className="mt-1 inline-block rounded-full bg-white/15 px-3 py-0.5 text-sm">{table.label}</p>
+          <p className="mt-1 inline-block rounded-full bg-white/15 px-3 py-0.5 text-sm">{tableName(table)}</p>
         ) : (
           <p className="mt-1 text-sm text-kopi-200">Scan QR di meja untuk pesan langsung dari HP</p>
         )}

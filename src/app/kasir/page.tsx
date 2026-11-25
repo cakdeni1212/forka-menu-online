@@ -6,11 +6,11 @@ import { useStaff } from "@/lib/useStaff";
 import { rupiah, jam, startOfTodayWIB, PAYMENT_LABEL } from "@/lib/format";
 import StaffGate from "@/components/StaffGate";
 import Receipt from "@/components/Receipt";
-import type { CartLine, Category, LoyaltySettings, Member, Order, PaymentMethod, Product } from "@/lib/types";
+import { tableName, type CartLine, type Category, type LoyaltySettings, type Member, type Order, type PaymentMethod, type Product } from "@/lib/types";
 import Link from "next/link";
 
 type Tab = "masuk" | "baru" | "riwayat";
-const ORDER_SELECT = "*, order_items(*), tables(label)";
+const ORDER_SELECT = "*, order_items(*), tables(label, area)";
 
 export default function KasirPage() {
   const s = useStaff();
@@ -63,7 +63,11 @@ function Kasir({ s }: { s: ReturnType<typeof useStaff> }) {
     return () => clearTimeout(t);
   }, [printing]);
 
-  const pending = orders.filter((o) => o.status === "pending");
+  const [areaFilter, setAreaFilter] = useState("__all");
+  const pendingAll = orders.filter((o) => o.status === "pending");
+  const areas = [...new Set(pendingAll.map((o) => o.tables?.area).filter((a): a is string => !!a))].sort();
+  const pending = pendingAll.filter((o) =>
+    areaFilter === "__all" ? true : areaFilter === "__none" ? !o.tables?.area : o.tables?.area === areaFilter);
 
   async function cancel(o: Order) {
     if (!confirm(`Batalkan pesanan ${o.order_no}?`)) return;
@@ -84,7 +88,7 @@ function Kasir({ s }: { s: ReturnType<typeof useStaff> }) {
           <span className="text-sm text-kopi-200">{outlet?.name}</span>
         )}
         <nav className="ml-auto flex gap-1">
-          {([["masuk", `Pesanan Masuk (${pending.length})`], ["baru", "Order Baru"], ["riwayat", "Hari Ini"]] as const).map(([k, label]) => (
+          {([["masuk", `Pesanan Masuk (${pendingAll.length})`], ["baru", "Order Baru"], ["riwayat", "Hari Ini"]] as const).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className={`rounded-lg px-3 py-1.5 text-sm ${tab === k ? "bg-white text-kopi-900" : "hover:bg-white/10"}`}>
               {label}
             </button>
@@ -97,6 +101,13 @@ function Kasir({ s }: { s: ReturnType<typeof useStaff> }) {
 
       {tab === "masuk" && (
         <section className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {areas.length > 0 && (
+            <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
+              {[["__all", `Semua (${pendingAll.length})`], ...areas.map((a) => [a, `${a} (${pendingAll.filter((o) => o.tables?.area === a).length})`]), ["__none", "Kasir / tanpa area"]].map(([k, l]) => (
+                <button key={k} onClick={() => setAreaFilter(k)} className={`rounded-full px-3 py-1 text-sm ${areaFilter === k ? "bg-kopi-700 text-white" : "bg-white ring-1 ring-kopi-200"}`}>{l}</button>
+              ))}
+            </div>
+          )}
           {pending.length === 0 && <p className="text-gray-500">Belum ada pesanan yang menunggu pembayaran.</p>}
           {pending.map((o) => (
             <OrderCard key={o.id} o={o}>
@@ -146,7 +157,7 @@ function OrderCard({ o, children }: { o: Order; children?: React.ReactNode }) {
         <div>
           <div className="text-2xl font-bold text-kopi-900">{o.order_no}</div>
           <div className="text-sm text-gray-600">
-            {o.customer_name ?? "Tanpa nama"} · {o.tables?.label ?? (o.source === "pos" ? "Kasir" : "-")}
+            {o.customer_name ?? "Tanpa nama"} · {tableName(o.tables) ?? (o.source === "pos" ? "Kasir" : "-")}
           </div>
         </div>
         <div className="text-right text-xs text-gray-500">
@@ -399,13 +410,14 @@ function Riwayat({ orders, onPrint }: { orders: Order[]; onPrint: (o: Order) => 
       </div>
       <table className="mt-4 w-full overflow-hidden rounded-xl bg-white text-sm shadow-sm">
         <thead className="bg-kopi-100 text-left">
-          <tr><th className="p-2">No</th><th>Jam</th><th>Customer</th><th>Status</th><th>Bayar</th><th className="text-right">Total</th><th></th></tr>
+          <tr><th className="p-2">No</th><th>Jam</th><th>Meja</th><th>Customer</th><th>Status</th><th>Bayar</th><th className="text-right">Total</th><th></th></tr>
         </thead>
         <tbody>
           {orders.map((o) => (
             <tr key={o.id} className="border-t">
               <td className="p-2 font-medium">{o.order_no}</td>
               <td>{jam(o.created_at)}</td>
+              <td>{tableName(o.tables) ?? "-"}</td>
               <td>{o.customer_name ?? "-"}</td>
               <td>{{ pending: "Belum bayar", paid: "Lunas", cancelled: "Batal" }[o.status]}</td>
               <td>{o.payment_method ? PAYMENT_LABEL[o.payment_method] : "-"}</td>

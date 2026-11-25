@@ -10,7 +10,7 @@ Sistem coffee shop Forka: menu online, order dari HP lewat QR meja, kasir, membe
 | `/menu/[outlet]` | Customer | Lihat menu. Kalau dibuka dari QR meja (`?meja=...`), bisa langsung pesan |
 | `/pesanan/[id]` | Customer | Nomor pesanan + status (menunggu bayar / lunas), update otomatis |
 | `/kasir` | Kasir | Pesanan masuk realtime (ada bunyi), order walk-in, bayar (Tunai/QRIS/Debit/Transfer), kembalian, cetak struk 58mm, rekap omzet hari ini |
-| `/admin` | Admin/Owner | Kelola kategori & menu, tandai menu habis, tambah meja, cetak QR meja |
+| `/admin` | Admin/Owner | Kelola kategori & menu, tandai menu habis, tambah meja per area (Lantai 1, Lantai 2, Outdoor, ...), cetak QR meja per area |
 
 Alur order: customer scan QR di meja → pilih menu → kirim → dapat nomor pesanan → bayar di kasir → kasir klik Lunas → struk tercetak.
 
@@ -50,6 +50,7 @@ Karyawan tidak perlu akun login. Tablet absen cukup login sekali pakai akun kasi
    - `supabase/migrations/0001_fase1_menu_kasir.sql`
    - `supabase/migrations/0002_fase2_member_poin.sql`
    - `supabase/migrations/0003_fase3_absen.sql`
+   - `supabase/migrations/0004_area_meja.sql` (area/lantai meja)
 
    Kalau 0001 sudah pernah dijalankan, cukup jalankan 0002 lalu 0003.
    > Database yang dibuat dengan `0001` versi lama (sebelum 25 Nov 2026) perlu juga menjalankan `supabase/migrations/0001b_fix_staff_policy.sql`. Gejalanya: login kasir/admin selalu muncul "belum terdaftar sebagai staff". Aman dijalankan ulang.

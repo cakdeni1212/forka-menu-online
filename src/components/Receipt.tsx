@@ -1,5 +1,5 @@
 import { rupiah, tanggalJam, PAYMENT_LABEL } from "@/lib/format";
-import type { Order, Outlet } from "@/lib/types";
+import { tableName, type Order, type Outlet } from "@/lib/types";
 
 /** Struk 58mm. Disembunyikan di layar, hanya muncul saat dicetak. */
 export default function Receipt({ order, outlet }: { order: Order; outlet: Outlet | undefined }) {
@@ -11,7 +11,7 @@ export default function Receipt({ order, outlet }: { order: Order; outlet: Outle
         {outlet?.phone && <div>{outlet.phone}</div>}
       </div>
       <div className="my-1 border-t border-dashed" />
-      <div>No: {order.order_no}{order.tables?.label ? ` · ${order.tables.label}` : ""}</div>
+      <div>No: {order.order_no}{order.tables ? ` · ${tableName(order.tables)}` : ""}</div>
       <div>{tanggalJam(order.paid_at ?? order.created_at)}</div>
       {order.customer_name && <div>Nama: {order.customer_name}</div>}
       <div className="my-1 border-t border-dashed" />
