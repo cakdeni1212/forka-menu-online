@@ -10,9 +10,10 @@ import type { Category, Product, TableRow } from "@/lib/types";
 import MemberAdmin from "./MemberAdmin";
 import KaryawanAdmin from "./KaryawanAdmin";
 import AbsenAdmin from "./AbsenAdmin";
+import DashboardAdmin from "./DashboardAdmin";
 
-type AdminTab = "menu" | "meja" | "member" | "karyawan" | "absen";
-const TAB_LABEL: Record<AdminTab, string> = { menu: "Menu", meja: "Meja & QR", member: "Member", karyawan: "Karyawan", absen: "Absen" };
+type AdminTab = "dashboard" | "menu" | "meja" | "member" | "karyawan" | "absen";
+const TAB_LABEL: Record<AdminTab, string> = { dashboard: "Dashboard", menu: "Menu", meja: "Meja & QR", member: "Member", karyawan: "Karyawan", absen: "Absen" };
 
 export default function AdminPage() {
   const s = useStaff();
@@ -26,7 +27,7 @@ export default function AdminPage() {
 function Admin({ s }: { s: ReturnType<typeof useStaff> }) {
   const outletId = s.outletId!;
   const outlet = s.outlets.find((o) => o.id === outletId);
-  const [tab, setTab] = useState<AdminTab>("menu");
+  const [tab, setTab] = useState<AdminTab>("dashboard");
 
   return (
     <div className="min-h-screen">
@@ -48,6 +49,7 @@ function Admin({ s }: { s: ReturnType<typeof useStaff> }) {
         </nav>
         <button onClick={s.signOut} className="text-sm underline">Keluar</button>
       </header>
+      {tab === "dashboard" && <DashboardAdmin outletId={outletId} outlets={s.outlets} isOwner={s.staff?.role === "owner"} />}
       {tab === "menu" && <MenuAdmin outletId={outletId} />}
       {tab === "meja" && <MejaAdmin outletId={outletId} outletSlug={outlet?.slug ?? ""} />}
       {tab === "member" && <MemberAdmin isOwner={s.staff?.role === "owner"} />}

@@ -21,6 +21,19 @@ Peran staff:
 
 Harga selalu dihitung ulang di database, jadi customer tidak bisa mengubah harga dari HP.
 
+## Dashboard penjualan
+
+Halaman pertama di `/admin`. Pilih Harian / Mingguan / Bulanan, geser periode dengan tombol ‹ ›, atau klik tanggal untuk loncat.
+
+- Total penjualan + perubahan % dibanding periode sebelumnya
+- Akumulasi dari awal bulan dan proyeksi akhir bulan (rata-rata per hari × jumlah hari)
+- Penjualan belum dibayar vs terbayar
+- Jumlah transaksi, rata-rata per transaksi, produk terjual, produk per transaksi
+- Grafik penjualan per jam / hari / tanggal vs periode sebelumnya (bisa dilihat sebagai tabel)
+- Per outlet; owner bisa pilih "Semua outlet"
+
+Pesanan batal tidak dihitung. Semua tanggal pakai WIB.
+
 ## Fase 2: Member & poin
 
 | Halaman | Untuk siapa | Fungsi |
@@ -51,6 +64,7 @@ Karyawan tidak perlu akun login. Tablet absen cukup login sekali pakai akun kasi
    - `supabase/migrations/0002_fase2_member_poin.sql`
    - `supabase/migrations/0003_fase3_absen.sql`
    - `supabase/migrations/0004_area_meja.sql` (area/lantai meja)
+   - `supabase/migrations/0005_dashboard_penjualan.sql` (dashboard admin)
 
    Kalau 0001 sudah pernah dijalankan, cukup jalankan 0002 lalu 0003.
    > Database yang dibuat dengan `0001` versi lama (sebelum 25 Nov 2026) perlu juga menjalankan `supabase/migrations/0001b_fix_staff_policy.sql`. Gejalanya: login kasir/admin selalu muncul "belum terdaftar sebagai staff". Aman dijalankan ulang.
