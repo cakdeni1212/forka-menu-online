@@ -52,6 +52,7 @@ Karyawan tidak perlu akun login. Tablet absen cukup login sekali pakai akun kasi
    - `supabase/migrations/0003_fase3_absen.sql`
 
    Kalau 0001 sudah pernah dijalankan, cukup jalankan 0002 lalu 0003.
+   > Database yang dibuat dengan `0001` versi lama (sebelum 25 Nov 2026) perlu juga menjalankan `supabase/migrations/0001b_fix_staff_policy.sql`. Gejalanya: login kasir/admin selalu muncul "belum terdaftar sebagai staff". Aman dijalankan ulang.
 3. (Opsional) Jalankan `supabase/seed.sql` untuk data contoh (1 outlet, 3 meja, 7 menu).
 4. **Buat akun owner**: Authentication → Users → Add user (email + password). Salin User UID-nya, lalu di SQL Editor:
    ```sql
